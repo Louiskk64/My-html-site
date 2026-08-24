@@ -86,7 +86,7 @@
 
   <div class="hero">
     <img class="property-photo" alt="Kuruvinakunnel Tharavadu" src="property-photo.jpg" />
-    <p class="welcome-text">Welcome to Kuruvinakunnel Tharavadu — a heritage homestay with roots stretching back 400 years, set amidst lush plantations and steeped in Kerala tradition. We're delighted to assist you with information about our rooms, meals, and activities.</p>
+    <p class="welcome-text">Welcome to Kuruvinakunnel Tharavadu — a heritage homestay with roots stretching back 400 years, set amidst lush plantations and steeped in Kerala tradition. We're delighted to assist you today.</p>
     <div class="menu-buttons">
       <button class="menu-btn" data-choice="tariff">Tariff</button>
       <button class="menu-btn" data-choice="activities">Activities</button>
@@ -113,6 +113,8 @@ const ACTIVITIES = [
   { name:"Kerala Cuisine cooking class", detail:"750 rupees per guest per session." },
   { name:"Nearby places of interest", detail:"The Gramophone Museum, and a vantage point uphill for sunset views." },
 ];
+
+const WELCOME_MESSAGE = "Welcome to Kuruvinakunnel Tharavadu — a heritage homestay with roots stretching back 400 years, set amidst lush plantations and steeped in Kerala tradition. We're delighted to assist you today.";
 
 function fmtRs(n){ return n.toLocaleString('en-IN') + " rupees"; }
 
@@ -294,6 +296,13 @@ function handleMenuChoice(choice){
 
 document.querySelectorAll('.menu-btn').forEach(btn => {
   btn.addEventListener('click', () => handleMenuChoice(btn.dataset.choice));
+});
+
+/* ---------- Auto-read welcome message on page load ---------- */
+window.addEventListener('load', () => {
+  setTimeout(() => {
+    speak(WELCOME_MESSAGE);
+  }, 500);
 });
 </script>
 
