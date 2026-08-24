@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-title" content="Tharavadu" />
 <meta name="mobile-web-app-capable" content="yes" />
 <meta name="theme-color" content="#142A1F" />
-<link rel="apple-touch-icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALQAAAC0CAIAAACyr5FlAAABHGlDQ1BJQ0MgUHJvZmlsZQAAeJxjYGDiyUnOLWYSYGDIzSspCnJ3UoiIjFJgv8PAyCDJwMygyWCZmFxc4BgQ4MOAE3y[...]
+<link rel="apple-touch-icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALQAAAC0CAIAAACyr5FlAAABHGlDQ1BJQ0MgUHJvZmlsZQAAeJxjYGDiyUnOLWYSYGDIzSspCnJ3UoiIjFJgv8PAyCDJwMygyWCZmFxc4BgQ4MOAE3y[...]" />
 <style>
   :root{
     --canopy:#142A1F;
@@ -85,7 +85,8 @@
 <main>
 
   <div class="hero">
-    <img class="property-photo" alt="Kuruvinakunnel Tharavadu" src="property-photo.jpg" />
+    <!-- ensure explicit relative path and id for JS hooks -->
+    <img id="property-photo" class="property-photo" alt="Kuruvinakunnel Tharavadu" src="./property-photo.jpg" />
     <p class="welcome-text">Welcome to Kuruvinakunnel Tharavadu — a heritage homestay with roots stretching back 400 years, set amidst lush plantations and steeped in Kerala tradition. We're delighted to assist you today.</p>
     <div class="menu-buttons">
       <button class="menu-btn" data-choice="tariff">Tariff</button>
@@ -235,23 +236,48 @@ function toSpeechText(text){
     .replace(/\//g, ' per ');
 }
 
+/* Instrumented speak() that returns a Promise and logs start/error */
 function speak(text){
-  if(!('speechSynthesis' in window)) return;
-  const utter = new SpeechSynthesisUtterance(toSpeechText(text));
-  utter.rate = 0.92;
-  utter.pitch = 1.02;
-  if(selectedVoice){
-    utter.voice = selectedVoice;
-    utter.lang = selectedVoice.lang || 'en-US';
-  }else{
-    utter.lang = 'en-US';
-  }
-  if(window.speechSynthesis.speaking) window.speechSynthesis.cancel();
-  window.speechSynthesis.speak(utter);
+  return new Promise((resolve, reject) => {
+    if(!('speechSynthesis' in window)){
+      console.warn('speechSynthesis not available');
+      return reject(new Error('speechSynthesis-not-available'));
+    }
+    const utter = new SpeechSynthesisUtterance(toSpeechText(text));
+    utter.rate = 0.92;
+    utter.pitch = 1.02;
+    if(selectedVoice){
+      utter.voice = selectedVoice;
+      utter.lang = selectedVoice.lang || 'en-US';
+    } else {
+      utter.lang = 'en-US';
+    }
+    utter.onstart = () => {
+      console.log('Speech started');
+      resolve('started');
+    };
+    utter.onend = () => {
+      console.log('Speech ended');
+    };
+    utter.onerror = (e) => {
+      console.error('Speech error', e);
+      reject(e);
+    };
+    if(window.speechSynthesis.speaking) {
+      console.log('speechSynthesis.speaking -> cancelling previous');
+      window.speechSynthesis.cancel();
+    }
+    try {
+      window.speechSynthesis.speak(utter);
+      // Note: some browsers won't call onstart if blocked; caller should handle fallback
+    } catch(e){
+      console.error('speak() threw', e);
+      reject(e);
+    }
+  });
 }
 
-/* ---------- Voice selection (automatic, no UI — picks the most
-   professional-sounding voice available on the device) ---------- */
+/* ---------- Voice selection (automatic, no UI — picks the most professional-sounding voice available on the device) ---------- */
 let selectedVoice = null;
 const PREFERRED_VOICE_NAMES = [
   'Daniel', 'Google UK English Male', 'Microsoft Ryan Online (Natural) - English (United Kingdom)',
@@ -268,11 +294,19 @@ function pickDefaultVoice(voices){
 }
 function populateVoices(){
   const voices = window.speechSynthesis.getVoices();
-  if(voices.length) selectedVoice = pickDefaultVoice(voices);
+  if(voices && voices.length){
+    selectedVoice = pickDefaultVoice(voices);
+    console.log('voices loaded, selectedVoice =', selectedVoice && selectedVoice.name);
+  } else {
+    console.log('populateVoices: no voices yet');
+  }
 }
 if('speechSynthesis' in window){
   populateVoices();
-  window.speechSynthesis.onvoiceschanged = populateVoices;
+  window.speechSynthesis.onvoiceschanged = () => {
+    console.log('onvoiceschanged fired');
+    populateVoices();
+  };
 }
 
 /* ---------- Responses ---------- */
@@ -286,11 +320,11 @@ function handleMenuChoice(choice){
   if(choice === 'tariff'){
     addEntry('guest', 'Tariff');
     addEntry('host', TARIFF_RESPONSE);
-    speak(TARIFF_RESPONSE);
+    speak(TARIFF_RESPONSE).catch(()=>{});
   }else{
     addEntry('guest', 'Activities');
     addEntry('host', ACTIVITIES_RESPONSE);
-    speak(ACTIVITIES_RESPONSE);
+    speak(ACTIVITIES_RESPONSE).catch(()=>{});
   }
 }
 
@@ -298,11 +332,64 @@ document.querySelectorAll('.menu-btn').forEach(btn => {
   btn.addEventListener('click', () => handleMenuChoice(btn.dataset.choice));
 });
 
-/* ---------- Auto-read welcome message on page load ---------- */
+/* ---------- Image load/error handling + robust auto-read ---------- */
+const photo = document.getElementById('property-photo');
+photo.addEventListener('load', () => {
+  console.log('property-photo.jpg loaded successfully');
+});
+photo.addEventListener('error', (ev) => {
+  console.error('property-photo.jpg failed to load', ev);
+  photo.alt = 'Photo not available';
+  photo.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="800" height="400"><rect width="100%" height="100%" fill="%23142A1F"/><text x="50%" y="50%" fill="%23DCD6C2" font-size="24" font-family="Arial" text-anchor="middle" dominant-baseline="middle">Photo not available</text></svg>';
+});
+
+function trySpeakWelcome(){
+  speak(WELCOME_MESSAGE).then(() => {
+    console.log('Welcome message started');
+    const btn = document.getElementById('enable-voice-btn');
+    if(btn) btn.remove();
+  }).catch(err => {
+    console.warn('Auto-speech blocked or failed:', err);
+  });
+}
+
+function triggerWhenReady(){
+  if(photo.complete && photo.naturalWidth !== 0){
+    trySpeakWelcome();
+    return;
+  }
+  photo.addEventListener('load', trySpeakWelcome, { once: true });
+  photo.addEventListener('error', () => console.warn('property-photo failed to load'));
+}
+
 window.addEventListener('load', () => {
+  setTimeout(trySpeakWelcome, 500);
+  triggerWhenReady();
+
+  const onFirstGesture = () => {
+    console.log('First gesture detected, attempting to speak welcome');
+    trySpeakWelcome();
+    window.removeEventListener('pointerdown', onFirstGesture);
+  };
+  window.addEventListener('pointerdown', onFirstGesture, { once: true });
+
   setTimeout(() => {
-    speak(WELCOME_MESSAGE);
-  }, 500);
+    if(!('speechSynthesis' in window)) return;
+    if(window.speechSynthesis.speaking) return;
+    const btn = document.createElement('button');
+    btn.id = 'enable-voice-btn';
+    btn.className = 'menu-btn';
+    btn.textContent = 'Enable voice';
+    btn.style.position = 'fixed';
+    btn.style.right = '16px';
+    btn.style.bottom = '16px';
+    btn.style.zIndex = 9999;
+    btn.addEventListener('click', () => {
+      trySpeakWelcome();
+      btn.remove();
+    }, { once: true });
+    document.body.appendChild(btn);
+  }, 1200);
 });
 </script>
 
