@@ -236,8 +236,11 @@ function toSpeechText(text){
 function speak(text){
   if(!('speechSynthesis' in window)) return;
   const utter = new SpeechSynthesisUtterance(toSpeechText(text));
-  utter.rate = 1.0;
-  utter.pitch = 1.0;
+  // Slower, more deliberate pace for warmth and clarity
+  utter.rate = 0.85;
+  // Slightly lower pitch for a warmer, more welcoming tone
+  utter.pitch = 0.92;
+  // Full volume for confident presence
   utter.volume = 1.0;
   if(selectedVoice){
     utter.voice = selectedVoice;
@@ -250,14 +253,21 @@ function speak(text){
 }
 
 /* ---------- Voice selection (automatic, no UI — picks the most
-   professional-sounding voice available on the device) ---------- */
+   natural and welcoming voice available on the device) ---------- */
 let selectedVoice = null;
 const PREFERRED_VOICE_NAMES = [
-  'Microsoft Aria Online (Natural) - English (United States)',
-  'Microsoft Ryan Online (Natural) - English (United Kingdom)',
+  // Female voices tend to sound warmer and more welcoming
   'Microsoft Sonia Online (Natural) - English (United Kingdom)',
-  'Daniel', 'Google UK English Male', 'Samantha', 'Google UK English Female',
-  'Karen', 'Moira', 'Google US English'
+  'Microsoft Aria Online (Natural) - English (United States)',
+  'Google UK English Female',
+  'Samantha',
+  'Moira',
+  'Karen',
+  // Male voices as fallback
+  'Microsoft Ryan Online (Natural) - English (United Kingdom)',
+  'Daniel',
+  'Google UK English Male',
+  'Google US English'
 ];
 function pickDefaultVoice(voices){
   for(const name of PREFERRED_VOICE_NAMES){
