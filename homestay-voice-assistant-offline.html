@@ -252,31 +252,39 @@ function speak(text){
   window.speechSynthesis.speak(utter);
 }
 
-/* ---------- Voice selection (automatic, no UI — picks the most
-   natural and welcoming voice available on the device) ---------- */
+/* ---------- Voice selection: Force female voice ---------- */
 let selectedVoice = null;
 const PREFERRED_VOICE_NAMES = [
-  // Female voices tend to sound warmer and more welcoming
-  'Microsoft Sonia Online (Natural) - English (United Kingdom)',
-  'Microsoft Aria Online (Natural) - English (United States)',
-  'Google UK English Female',
+  // Female voices - maximum priority
   'Samantha',
   'Moira',
   'Karen',
-  // Male voices as fallback
-  'Microsoft Ryan Online (Natural) - English (United Kingdom)',
-  'Daniel',
-  'Google UK English Male',
-  'Google US English'
+  'Google UK English Female',
+  'Microsoft Aria Online (Natural) - English (United States)',
+  'Microsoft Sonia Online (Natural) - English (United Kingdom)',
+  'Victoria',
+  'Fiona'
 ];
+
 function pickDefaultVoice(voices){
+  // Try exact preferred voice names first
   for(const name of PREFERRED_VOICE_NAMES){
     const found = voices.find(v => v.name === name);
     if(found) return found;
   }
+  
+  // If no match, filter for female voices by name patterns
+  const femalePatterns = ['female', 'woman', 'girl', 'aria', 'sonia', 'samantha', 'moira', 'karen', 'victoria', 'fiona'];
+  const femaleVoices = voices.filter(v => 
+    femalePatterns.some(pattern => v.name.toLowerCase().includes(pattern))
+  );
+  if(femaleVoices.length > 0) return femaleVoices[0];
+  
+  // Fallback to any English voice
   const english = voices.filter(v => v.lang && v.lang.startsWith('en'));
   return english[0] || voices[0] || null;
 }
+
 function populateVoices(){
   const voices = window.speechSynthesis.getVoices();
   if(voices.length) selectedVoice = pickDefaultVoice(voices);
