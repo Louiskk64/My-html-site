@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Kuruvinakunnel Tharavadu — Guest Assistant</title>
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Tharavadu" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="theme-color" content="#142A1F" />
+<link rel="apple-touch-icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALQAAAC0CAIAAACyr5FlAAABHGlDQ1BJQ0MgUHJvZmlsZQAAeJxjYGDiyUnOLWYSYGDIzSspCnJ3UoiIjFJgv8PAyCDJwMygyWCZmFxc4BgQ4MOAE3y7BlQ[...]
+<style>
+  :root{
+    --canopy:#142A1F;
+    --latex:#F2EFE4;
+    --latex-dim:#DCD6C2;
+    --honey:#C98A2C;
+    --honey-dim:#9C6A1F;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;height:100%;}
+  body{
+    background:
+      radial-gradient(ellipse at top left, rgba(107,143,113,0.18), transparent 55%),
+      radial-gradient(ellipse at bottom right, rgba(201,138,44,0.10), transparent 50%),
+      var(--canopy);
+    color:var(--latex);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    min-height:100%;
+    display:flex;
+    flex-direction:column;
+  }
+
+  main{flex:1; display:flex; flex-direction:column; min-height:0;}
+
+  .hero{ padding:16px 16px 0; }
+  .welcome-text{
+    color:var(--latex-dim);
+    font-size:13px;
+    line-height:1.55;
+    margin:14px 0 0;
+    text-align:center;
+  }
+  .property-photo{
+    width:100%;
+    height:200px;
+    object-fit:cover;
+    border-radius:12px;
+    display:block;
+    border:1px solid rgba(242,239,228,0.15);
+  }
+  .menu-buttons{
+    display:flex;
+    gap:10px;
+    margin-top:14px;
+  }
+  .menu-btn{
+    flex:1;
+    border:1px solid var(--honey);
+    background:var(--honey);
+    color:var(--canopy);
+    font-weight:700;
+    font-size:15px;
+    padding:14px 10px;
+    border-radius:10px;
+    cursor:pointer;
+    font-family:inherit;
+  }
+  .menu-btn:active{ background:var(--honey-dim); border-color:var(--honey-dim); }
+
+  #log{flex:1; overflow-y:auto; padding:16px; display:flex; flex-direction:column; gap:14px;}
+
+  .entry{display:flex; gap:10px; max-width:100%;}
+  .entry .num{font-family:Georgia,serif; font-size:12px; color:var(--honey-dim); padding-top:11px; min-width:22px; text-align:right; flex-shrink:0;}
+  .bubble{padding:11px 14px; border-radius:4px; font-size:14.5px; line-height:1.55; max-width:78%; white-space:pre-line;}
+  .entry.guest{flex-direction:row-reverse;}
+  .entry.guest .num{text-align:left;}
+  .entry.guest .bubble{background:var(--honey); color:var(--canopy); border-radius:4px 4px 4px 14px; font-weight:500;}
+  .entry.host .bubble{background:rgba(242,239,228,0.08); border:1px solid rgba(242,239,228,0.14); border-radius:4px 14px 4px 4px;}
+</style>
+</head>
+<body>
+
+<main>
+
+  <div class="hero">
+    <img class="property-photo" alt="Kuruvinakunnel Tharavadu" src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAcFBQYFBAcGBgYIBwcICxILCwoKCxYPEA0SGhYbGhkWGRgcICgiHB4mHhgZIzAkJiorLS4tGyIyN[...]
+    <p class="welcome-text">Welcome to Kuruvinakunnel Tharavadu — a heritage homestay with roots stretching back 400 years, set amidst lush plantations and steeped in Kerala tradition. We're delight[...]
+    <div class="menu-buttons">
+      <button class="menu-btn" data-choice="tariff">Tariff</button>
+      <button class="menu-btn" data-choice="activities">Activities</button>
+    </div>
+  </div>
+
+  <div id="log"></div>
+</main>
+
+<script>
+/* ---------- Knowledge base ---------- */
+const RATES = [
+  { key:'bungalow5', room:"Whole Bungalow", guests:5, rate:15000, keywords:['whole bungalow','bungalow','5 guest','five guest'] },
+  { key:'bungalow4', room:"Whole Bungalow", guests:4, rate:14000, keywords:['whole bungalow','bungalow','4 guest','four guest'] },
+  { key:'grandpa3', room:"Grandpa's Abode", guests:3, rate:11500, keywords:['grandpa','3 guest','three guest'] },
+  { key:'grandpa2', room:"Grandpa's Abode", guests:2, rate:10500, keywords:['grandpa','2 guest','two guest'] },
+  { key:'grandma2', room:"Grandma's Abode", guests:2, rate:9000, keywords:['grandma','2 guest','two guest'] },
+];
+const EXTRA_MEAL_RATE = 850;
+const ACTIVITIES = [
+  { name:"Plantation walk", detail:"A guided walk through the plantation grounds." },
+  { name:"Live rubber tapping", detail:"Watch a live rubber tapping demonstration." },
+  { name:"Beekeeping", detail:"Get to know beekeeping right at the property." },
+  { name:"Kerala Cuisine cooking class", detail:"750 rupees per guest per session." },
+  { name:"Nearby places of interest", detail:"The Gramophone Museum, and a vantage point uphill for sunset views." },
+];
+
+function fmtRs(n){ return n.toLocaleString('en-IN') + " rupees"; }
+
+function fullTariffText(){
+  return "Whole Bungalow: " + fmtRs(15000) + " per night for 5 guests, or " + fmtRs(14000) + " per night for 4 guests.\n" +
+    "Grandpa's Abode: " + fmtRs(11500) + " per night for 3 guests, or " + fmtRs(10500) + " per night for 2 guests.\n" +
+    "Grandma's Abode: " + fmtRs(9000) + " per night for 2 guests.\n" +
+    "Breakfast is included in every rate. We serve Kerala cuisine, both vegetarian and non-vegetarian. Extra meals are " + fmtRs(EXTRA_MEAL_RATE) + " per guest.";
+}
+
+function activitiesText(){
+  return ACTIVITIES.map(a => a.name + (a.detail ? " — " + a.detail : "")).join("\n");
+}
+
+/* ---------- Simple intent matching ---------- */
+function answerQuery(raw){
+  const q = raw.toLowerCase().trim();
+
+  // Numbered menu shortcuts
+  if(q === '1' || q === 'one' || q.includes('option 1') || q.includes('option one')){
+    return fullTariffText();
+  }
+  if(q === '2' || q === 'two' || q.includes('option 2') || q.includes('option two')){
+    return "Here's what's on offer:\n" + activitiesText();
+  }
+
+  // Guest count + room type combined query
+  const guestNumMatch = q.match(/(\d+)\s*(guest|people|pax|person)/) ||
+    (q.includes('five') ? ['','5'] : q.includes('four') ? ['','4'] : q.includes('three') ? ['','3'] : q.includes('two') ? ['','2'] : null);
+  const guestNum = guestNumMatch ? parseInt(guestNumMatch[1]) : null;
+
+  const mentionsBungalow = q.includes('bungalow');
+  const mentionsGrandpa = q.includes('grandpa');
+  const mentionsGrandma = q.includes('grandma');
+
+  if((mentionsBungalow || mentionsGrandpa || mentionsGrandma) && guestNum){
+    const match = RATES.find(r =>
+      r.guests === guestNum &&
+      ((mentionsBungalow && r.room === "Whole Bungalow") ||
+       (mentionsGrandpa && r.room === "Grandpa's Abode") ||
+       (mentionsGrandma && r.room === "Grandma's Abode"))
+    );
+    if(match){
+      return match.room + " for " + match.guests + " guests is " + fmtRs(match.rate) + " per night, breakfast included.";
+    }
+    return "I don't have a rate for that exact combination on file — here's the full tariff instead:\n\n" + fullTariffText();
+  }
+
+  if(mentionsBungalow){
+    const b5 = RATES.find(r=>r.key==='bungalow5'), b4 = RATES.find(r=>r.key==='bungalow4');
+    return "Whole Bungalow: " + fmtRs(b5.rate) + " per night for " + b5.guests + " guests, or " + fmtRs(b4.rate) + " per night for " + b4.guests + " guests. Breakfast included.";
+  }
+  if(mentionsGrandpa){
+    const g3 = RATES.find(r=>r.key==='grandpa3'), g2 = RATES.find(r=>r.key==='grandpa2');
+    return "Grandpa's Abode: " + fmtRs(g3.rate) + " per night for " + g3.guests + " guests, or " + fmtRs(g2.rate) + " per night for " + g2.guests + " guests. Breakfast included.";
+  }
+  if(mentionsGrandma){
+    const g2 = RATES.find(r=>r.key==='grandma2');
+    return "Grandma's Abode is " + fmtRs(g2.rate) + " per night for " + g2.guests + " guests, breakfast included.";
+  }
+
+  if(q.includes('meal') || q.includes('food') || q.includes('lunch') || q.includes('dinner') || q.includes('breakfast') || q.includes('veg') || q.includes('cuisine')){
+    return "Breakfast is included with every room. We serve Kerala cuisine, both vegetarian and non-vegetarian. Extra meals beyond breakfast are " + fmtRs(EXTRA_MEAL_RATE) + " per meal, per guest.";
+  }
+
+  if(q.includes('activit') || q.includes('do at') || q.includes('things to do') || q.includes('what can we do')){
+    return "Here's what's on offer:\n" + activitiesText();
+  }
+
+  if(q.includes('cooking') || q.includes('cuisine') || q.includes('cook')){
+    return "The Kerala Cuisine cooking class is 750 rupees per guest per session.";
+  }
+  if(q.includes('rubber')){
+    return "You can watch a live rubber tapping demonstration at the property.";
+  }
+  if(q.includes('bee')){
+    return "Guests can get to know beekeeping right at the property.";
+  }
+  if(q.includes('museum') || q.includes('gramophone')){
+    return "The Gramophone Museum is one of the nearby places of interest.";
+  }
+  if(q.includes('sunset') || q.includes('view') || q.includes('point') || q.includes('hill')){
+    return "There's a vantage point uphill that's great for sunset views.";
+  }
+
+  if(q.includes('tariff') || q.includes('rate') || q.includes('price') || q.includes('cost') || q.includes('how much')){
+    return fullTariffText();
+  }
+
+  return "I don't have that on file. I can help with room rates, meals, or on-property activities — try asking about the bungalow, Grandpa's or Grandma's Abode, or things to do.";
+}
+
+/* ---------- UI wiring ---------- */
+const log = document.getElementById('log');
+
+let entryCount = 0;
+
+function addEntry(role, text){
+  entryCount++;
+  const wrap = document.createElement('div');
+  wrap.className = 'entry ' + (role === 'guest' ? 'guest' : 'host');
+  const num = document.createElement('div');
+  num.className = 'num';
+  num.textContent = entryCount;
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble';
+  bubble.textContent = text;
+  wrap.appendChild(role === 'guest' ? bubble : num);
+  wrap.appendChild(role === 'guest' ? num : bubble);
+  log.appendChild(wrap);
+  log.scrollTop = log.scrollHeight;
+  return bubble;
+}
+
+function toSpeechText(text){
+  return text
+    .replace(/Rs\.?\s?([\d,]+)/g, '$1 rupees')
+    .replace(/\//g, ' per ');
+}
+
+function speak(text){
+  if(!('speechSynthesis' in window)) return;
+  const utter = new SpeechSynthesisUtterance(toSpeechText(text));
+  utter.rate = 0.92;
+  utter.pitch = 1.02;
+  if(selectedVoice){
+    utter.voice = selectedVoice;
+    utter.lang = selectedVoice.lang || 'en-US';
+  }else{
+    utter.lang = 'en-US';
+  }
+  if(window.speechSynthesis.speaking) window.speechSynthesis.cancel();
+  window.speechSynthesis.speak(utter);
+}
+
+/* ---------- Voice selection (automatic, no UI — picks the most
+   professional-sounding voice available on the device) ---------- */
+let selectedVoice = null;
+const PREFERRED_VOICE_NAMES = [
+  'Daniel', 'Google UK English Male', 'Microsoft Ryan Online (Natural) - English (United Kingdom)',
+  'Samantha', 'Google UK English Female', 'Microsoft Sonia Online (Natural) - English (United Kingdom)',
+  'Microsoft Aria Online (Natural) - English (United States)', 'Karen', 'Moira', 'Google US English'
+];
+function pickDefaultVoice(voices){
+  for(const name of PREFERRED_VOICE_NAMES){
+    const found = voices.find(v => v.name === name);
+    if(found) return found;
+  }
+  const english = voices.filter(v => v.lang && v.lang.startsWith('en'));
+  return english[0] || voices[0] || null;
+}
+function populateVoices(){
+  const voices = window.speechSynthesis.getVoices();
+  if(voices.length) selectedVoice = pickDefaultVoice(voices);
+}
+if('speechSynthesis' in window){
+  populateVoices();
+  window.speechSynthesis.onvoiceschanged = populateVoices;
+}
+
+/* ---------- Responses ---------- */
+const TARIFF_RESPONSE =
+  "Thank you for your enquiry about Kuruvinakunnel Tharavadu. " + fullTariffText();
+
+const ACTIVITIES_RESPONSE =
+  "Thank you for your enquiry about Kuruvinakunnel Tharavadu. Here's what's on offer during your stay:\n" + activitiesText();
+
+function handleMenuChoice(choice){
+  if(choice === 'tariff'){
+    addEntry('guest', 'Tariff');
+    addEntry('host', TARIFF_RESPONSE);
+    speak(TARIFF_RESPONSE);
+  }else{
+    addEntry('guest', 'Activities');
+    addEntry('host', ACTIVITIES_RESPONSE);
+    speak(ACTIVITIES_RESPONSE);
+  }
+}
+
+document.querySelectorAll('.menu-btn').forEach(btn => {
+  btn.addEventListener('click', () => handleMenuChoice(btn.dataset.choice));
+});
+</script>
+
+</body>
+</html>
